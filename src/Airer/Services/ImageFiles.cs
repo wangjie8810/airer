@@ -16,6 +16,22 @@ public static class ImageFiles
 
     public static Bitmap? Thumbnail(string path, int maxEdge)
     {
+        var png = ThumbnailPng(path, maxEdge);
+        if (png == null)
+            return null;
+        try
+        {
+            return new Bitmap(new MemoryStream(png));
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Thumbnail failed for {path}: {ex.Message}");
+            return null;
+        }
+    }
+
+    public static byte[]? ThumbnailPng(string path, int maxEdge)
+    {
         try
         {
             var info = new FileInfo(path);
@@ -42,7 +58,7 @@ public static class ImageFiles
                 return null;
             using var image = SKImage.FromBitmap(resized);
             using var data = image.Encode(SKEncodedImageFormat.Png, 90);
-            return new Bitmap(new MemoryStream(data.ToArray()));
+            return data.ToArray();
         }
         catch (Exception ex)
         {

@@ -31,6 +31,27 @@ Tendedero 的名字和图标属于原作者，不在 MIT 许可范围内。晾�
 - 可以再添加要监视的文件夹。
 - 「挂上复制的图片」默认关闭，避免把普通剪贴板内容挂上来。
 
+## 1.1.0 的改进
+
+- 全屏截图时，绳子会立刻收到画面外，不再把正在收回的卡片截进图里。
+- 监视的网络盘或映射盘暂时没挂上时，目录会留在设置里。盘重新挂上后继续监视，不会被悄悄删掉。目录所在的磁盘已经挂上、文件夹本身不在了，才会从设置里移除。
+- 新图片的缩略图在后台生成。截完一张大图之后，绳子靠近上沿时的反应不再被解码卡住。
+
+## 安装
+
+从 [Releases](https://github.com/wangjie8810/airer/releases) 下载安装包：
+
+| 文件 | 用在 |
+| --- | --- |
+| `Airer-Setup-win-x64.exe` | 常见的 64 位 Windows 10 / 11 |
+| `Airer-Setup-win-arm64.exe` | ARM64 的 Windows 10 / 11 |
+
+双击安装。程序装到当前用户的 `%LocalAppData%\Programs\Airer`，不需要管理员。开始菜单里是「晾衣绳」。在 Windows 的「应用」里卸载。卸载会去掉登录时打开，但不会删除 `%AppData%\Airer` 里的截图和设置。
+
+安装包没有代码签名。Windows 第一次打开时如果提示无法验证发布者，选择仍要运行。
+
+不想安装的话，同一个 Release 里还有 zip，解压后直接运行里面的 `Airer.exe`。
+
 ## 快捷键
 
 默认都可以在托盘菜单里改。一个快捷键需要带 Ctrl、Alt 或 Win。
@@ -79,6 +100,12 @@ dotnet publish src/Airer/Airer.csproj -c Release -r win-x64 --self-contained tru
 dotnet publish src/Airer/Airer.csproj -c Release -r win-arm64 --self-contained true -o dist/win-arm64
 ```
 
-`dist/win-x64/Airer.exe` 不需要另外安装运行时。从 macOS 交叉编译也可以用 `scripts/publish-windows.sh`。
+`dist/win-x64/Airer.exe` 不需要另外安装运行时。从 macOS 交叉编译、并打出安装包：
+
+```bash
+scripts/publish-windows.sh
+```
+
+需要 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) 和 [NSIS](https://nsis.sourceforge.io/)（macOS 上是 `brew install makensis`）。安装包出现在 `dist/Airer-Setup-win-x64.exe` 和 `dist/Airer-Setup-win-arm64.exe`。
 
 截图存在 `%AppData%\Airer\Captures`。设置在 `%AppData%\Airer\settings.json`。程序不联网。

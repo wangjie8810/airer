@@ -69,7 +69,7 @@ public sealed class AppHost : IDisposable
         BindHotkeys();
 
         _watch = new FolderWatch();
-        _watch.ImageArrived += path => Dispatcher.UIThread.Post(() => HangPath(path, quietly: false));
+        _watch.ImageArrived += path => Dispatcher.UIThread.Post(() => _ = HangPath(path, quietly: false));
         RestartWatch();
 
         _clipStamp = ClipboardImages.Stamp();
@@ -95,7 +95,7 @@ public sealed class AppHost : IDisposable
         Dispatcher.UIThread.Post(() => OpenWindows(demo, args.Contains("--debug")));
 
         if (demo)
-            LoadDemo();
+            _ = LoadDemo();
         else if (!_settings.Welcomed)
         {
             _settings.Welcomed = true;
@@ -236,13 +236,13 @@ public sealed class AppHost : IDisposable
         ApplyReveal();
     }
 
-    private void LoadDemo()
+    private async Task LoadDemo()
     {
         var wide = ImageFiles.WriteSample(StoragePaths.Inbox, "demo-wide.png", new SkiaSharp.SKColor(47, 111, 106), 1280, 720, "1");
         var tall = ImageFiles.WriteSample(StoragePaths.Inbox, "demo-tall.png", new SkiaSharp.SKColor(196, 107, 74), 640, 1100, "2");
         var square = ImageFiles.WriteSample(StoragePaths.Inbox, "demo-square.png", new SkiaSharp.SKColor(61, 90, 128), 900, 900, "3");
         foreach (var path in new[] { wide, tall, square })
-            _line.Hang(path, ThumbEdge(), 8, quietly: true);
+            await _line.Hang(path, ThumbEdge(), 8, quietly: true);
         _settings.EmptyDismissed = false;
     }
 
@@ -293,7 +293,7 @@ public sealed class AppHost : IDisposable
             if (png == null)
                 _ = new PromptWindow().ShowNote(Text.CaptureFailed);
             else
-                HangCapture(png, screen);
+                await HangCapture(png, screen);
         }
         _snipping = false;
         ApplyReveal();
@@ -315,23 +315,23 @@ public sealed class AppHost : IDisposable
         if (png == null)
             _ = new PromptWindow().ShowNote(Text.CaptureFailed);
         else
-            HangCapture(png, screen);
+            await HangCapture(png, screen);
         ApplyReveal();
     }
 
-    private void HangCapture(byte[] png, Screen screen)
+    private async Task HangCapture(byte[] png, Screen screen)
     {
         var path = StoragePaths.UniquePath(StoragePaths.Inbox, $"Screenshot {DateTime.Now:yyyy-MM-dd HH.mm.ss}.png");
         File.WriteAllBytes(path, png);
         _activeKey = KeyOf(screen);
-        HangPath(path, quietly: false);
+        await HangPath(path, quietly: false);
     }
 
-    private void HangPath(string path, bool quietly)
+    private async Task HangPath(string path, bool quietly)
     {
         var window = ActiveWindow() ?? _windows.FirstOrDefault();
         var max = window == null ? 8 : _line.MaxItems(window.Bounds.Width);
-        if (_line.Hang(path, ThumbEdge(), max, quietly) == null)
+        if (await _line.Hang(path, ThumbEdge(), max, quietly) == null)
             return;
         _settings.EmptyDismissed = false;
         if (_settings.RevealOnNew)
@@ -359,7 +359,7 @@ public sealed class AppHost : IDisposable
             return;
         var path = StoragePaths.UniquePath(StoragePaths.Inbox, $"Clipboard {DateTime.Now:yyyy-MM-dd HH.mm.ss}.png");
         File.WriteAllBytes(path, png);
-        HangPath(path, quietly: false);
+        _ = HangPath(path, quietly: false);
     }
 
     private void PollPointer()
@@ -401,7 +401,7 @@ public sealed class AppHost : IDisposable
         if (show)
             _seenOpen = true;
         foreach (var window in _windows)
-            window.SetRevealed(show && window.Key == _activeKey);
+            window.SetRevealed(show && window.Key == _activeKey, instant: _snipping);
         if (!show && _seenOpen && _line.LiveCount == 0 && !_settings.EmptyDismissed && _windows.Count > 0)
         {
             _settings.EmptyDismissed = true;
@@ -462,6 +462,7 @@ public sealed class AppHost : IDisposable
 
     private void RestartWatch()
     {
+        Directory.CreateDirectory(StoragePaths.Inbox);
         var folders = new List<string> { StoragePaths.Inbox };
         folders.AddRange(_settings.WatchFolders);
         _watch.Start(folders);

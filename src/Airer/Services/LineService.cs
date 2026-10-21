@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 
 namespace Airer;
 
@@ -59,6 +60,7 @@ public sealed class PeggedItem : INotifyPropertyChanged
 public sealed class LineService : INotifyPropertyChanged
 {
     private readonly AppSettings _settings;
+    private readonly HashSet<string> _pendingHang = new(StringComparer.OrdinalIgnoreCase);
     private Guid? _copiedId;
     private int _gust;
     private double _scroll;
@@ -98,13 +100,71 @@ public sealed class LineService : INotifyPropertyChanged
         return _settings.KeepOnLine > 0 ? _settings.KeepOnLine : visible;
     }
 
-    public PeggedItem? Hang(string path, int maxEdge, int maxItems, bool quietly)
+    public Task<PeggedItem?> Hang(string path, int maxEdge, int maxItems, bool quietly)
     {
-        if (Items.Any(i => !i.Falling && string.Equals(i.Path, path, StringComparison.OrdinalIgnoreCase)))
+        if (Dispatcher.UIThread.CheckAccess())
+            return HangCore(path, maxEdge, maxItems, quietly);
+
+        var done = new TaskCompletionSource<PeggedItem?>();
+        Dispatcher.UIThread.Post(() => HangCore(path, maxEdge, maxItems, quietly).ContinueWith(task =>
+        {
+            if (task.IsFaulted)
+                done.TrySetException(task.Exception!.InnerExceptions);
+            else if (task.IsCanceled)
+                done.TrySetCanceled();
+            else
+                done.TrySetResult(task.Result);
+        }, TaskScheduler.Default));
+        return done.Task;
+    }
+
+    private async Task<PeggedItem?> HangCore(string path, int maxEdge, int maxItems, bool quietly)
+    {
+        if (LivePath(path) || !_pendingHang.Add(path))
             return null;
-        var thumb = ImageFiles.Thumbnail(path, maxEdge);
-        if (thumb == null)
+
+        byte[]? png = null;
+        try
+        {
+            png = await Task.Run(() => ImageFiles.ThumbnailPng(path, maxEdge));
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Thumbnail failed for {path}: {ex.Message}");
+        }
+
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+                return FinishHang(path, png, maxItems, quietly);
+            return await Dispatcher.UIThread.InvokeAsync(() => FinishHang(path, png, maxItems, quietly));
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Thumbnail failed for {path}: {ex.Message}");
+            if (Dispatcher.UIThread.CheckAccess())
+                _pendingHang.Remove(path);
             return null;
+        }
+    }
+
+    private PeggedItem? FinishHang(string path, byte[]? png, int maxItems, bool quietly)
+    {
+        _pendingHang.Remove(path);
+        if (png == null || png.Length == 0 || LivePath(path))
+            return null;
+
+        Bitmap thumb;
+        try
+        {
+            thumb = new Bitmap(new MemoryStream(png));
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Thumbnail failed for {path}: {ex.Message}");
+            return null;
+        }
+
         var item = new PeggedItem(path, thumb, thumb.PixelSize.Width, thumb.PixelSize.Height, StoragePaths.IsInside(path, StoragePaths.Inbox));
         Items.Add(item);
         Scroll = 0;
@@ -120,6 +180,9 @@ public sealed class LineService : INotifyPropertyChanged
         HangingChanged?.Invoke();
         return item;
     }
+
+    private bool LivePath(string path)
+        => Items.Any(i => !i.Falling && string.Equals(i.Path, path, StringComparison.OrdinalIgnoreCase));
 
     public void Restore(int maxEdge)
     {

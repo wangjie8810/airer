@@ -17,9 +17,13 @@ public sealed class FolderWatch : IDisposable
         StopWatchers();
         foreach (var folder in folders.Distinct(StringComparer.OrdinalIgnoreCase))
         {
+            if (!WatchFolderRules.CanWatch(folder, out var reason))
+            {
+                Log.Info($"Skipping watch folder {folder}: {reason}.");
+                continue;
+            }
             try
             {
-                Directory.CreateDirectory(folder);
                 var watcher = new FileSystemWatcher(folder)
                 {
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.CreationTime,

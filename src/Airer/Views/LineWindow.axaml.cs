@@ -19,7 +19,7 @@ public partial class LineWindow : Window
     private Canvas Cards = null!;
     private readonly AppHost _host = null!;
     private readonly Dictionary<Guid, PegControl> _pegs = [];
-    private readonly TranslateTransform _slide = new();
+    private TranslateTransform _slide = new();
     private CancellationTokenSource? _slideCts;
     private bool _revealed;
     private IntPtr _native;
@@ -67,15 +67,20 @@ public partial class LineWindow : Window
         Width = screen.Bounds.Width / scale;
         Height = LineLayout.PanelHeight(_host.Settings.Size);
         if (!_revealed)
-            _slide.Y = -(Height + 12);
+            _slide.Y = HiddenY();
     }
 
-    public void SetRevealed(bool revealed)
+    public void SetRevealed(bool revealed, bool instant = false)
     {
-        if (_revealed == revealed)
+        // A screenshot must not wait out the 200ms retract, or the pegs are still on screen.
+        var snapHide = instant && !revealed;
+        if (_revealed == revealed && !snapHide)
             return;
         _revealed = revealed;
-        _ = Animate(revealed ? 0 : -(Height + 12), revealed);
+        if (snapHide)
+            HideImmediately();
+        else
+            _ = Animate(revealed ? 0 : HiddenY(), revealed);
         if (OperatingSystem.IsMacOS() && !revealed)
             MacWindow.SetIgnoresMouse(_native, true);
     }
@@ -170,6 +175,18 @@ public partial class LineWindow : Window
             WinHitTest.Attach(_native, Hit);
         else if (OperatingSystem.IsMacOS())
             MacWindow.Configure(_native);
+    }
+
+    private double HiddenY() => -(Height + 12);
+
+    private void HideImmediately()
+    {
+        _slideCts?.Cancel();
+        _slideCts = null;
+        // Drop the transform the slide animation is writing to, so a tick already
+        // queued cannot pull the line back on screen. The next reveal reads this Y.
+        _slide = new TranslateTransform { Y = HiddenY() };
+        Root.RenderTransform = _slide;
     }
 
     private async Task Animate(double to, bool show)

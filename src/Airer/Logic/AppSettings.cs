@@ -32,7 +32,20 @@ public sealed class AppSettings
         if (KeepOnLine is not (0 or 25 or 50 or 100))
             KeepOnLine = 0;
         LineSize = LineLayout.SizeName(Size);
-        WatchFolders = WatchFolders.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var kept = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var folder in WatchFolders)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || !seen.Add(folder))
+                continue;
+            if (!WatchFolderRules.ShouldKeep(folder))
+            {
+                Log.Info($"Removed watch folder {folder}: the volume is ready and the directory is missing.");
+                continue;
+            }
+            kept.Add(folder);
+        }
+        WatchFolders = kept;
     }
 
     private static HotkeyChord RepairChord(HotkeyChord chord, HotkeyChord fallback)
