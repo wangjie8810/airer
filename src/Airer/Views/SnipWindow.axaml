@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Airer.Views.SnipWindow"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        CanResize="False"
+        Cursor="Cross"
+        WindowState="Normal">
+  <Panel x:Name="Root" Background="#73000000">
+    <Canvas>
+      <Rectangle x:Name="Band" Stroke="White" StrokeThickness="1.5" Fill="#33FFFFFF" IsVisible="False" />
+      <Border x:Name="SizeChip" Background="#E0111111" CornerRadius="6" Padding="8,3" IsVisible="False">
+        <TextBlock x:Name="LabelText" Foreground="White" FontSize="12" />
+      </Border>
+    </Canvas>
+    <TextBlock x:Name="Help" HorizontalAlignment="Center" VerticalAlignment="Center"
+               Foreground="White" FontSize="16" />
+  </Panel>
+</Window>

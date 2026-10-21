@@ -1,0 +1,34 @@
+Thank you to Alejandro Buján for Tendedero (https://github.com/alejandrobujan/tendedero).
+
+Airer (晾衣绳) is an independent Windows port of Tendedero. It keeps the line
+and its gestures, adapts them to Windows 10 and Windows 11, and adds
+changeable hotkeys for a region snip and a full-screen shot. Those changes
+are described in README.md.
+
+The original source code is Copyright (c) 2026 Alejandro Buján and is licensed
+under the MIT License below. That license does not grant any rights to the
+Tendedero name or the Tendedero icon. This project is therefore named Airer
+and ships with its own icon. It is not Tendedero and is not endorsed by
+Alejandro Buján.
+
+MIT License
+
+Copyright (c) 2026 Alejandro Buján
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

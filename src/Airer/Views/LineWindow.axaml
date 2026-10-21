@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:Airer.Views"
+        x:Class="Airer.Views.LineWindow"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        CanResize="False"
+        ShowActivated="False"
+        Focusable="False"
+        WindowState="Normal">
+  <Panel x:Name="Root" Background="Transparent">
+    <v:RopeView IsHitTestVisible="False" />
+    <Canvas x:Name="Cards" Background="Transparent" />
+    <Border x:Name="Hint" HorizontalAlignment="Center" VerticalAlignment="Top"
+            Background="#E8F7F7F7" CornerRadius="14" Padding="12,6"
+            BoxShadow="0 4 12 0 #22000000" IsVisible="False" IsHitTestVisible="False">
+      <TextBlock x:Name="HintText" FontSize="12" Foreground="#CC333333" />
+    </Border>
+  </Panel>
+</Window>
