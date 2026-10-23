@@ -8,6 +8,7 @@ public static class WinHitTest
     private const int GwlpWndProc = -4;
     private const int WmNcHitTest = 0x0084;
     private const int HtTransparent = -1;
+    private const int WsExTransparent = 0x00000020;
     private const int WsExNoActivate = 0x08000000;
     private const int WsExToolWindow = 0x00000080;
 
@@ -25,6 +26,33 @@ public static class WinHitTest
         var hook = new Hook(interactive);
         hook.Previous = SetWindowLongPtr(hwnd, GwlpWndProc, Marshal.GetFunctionPointerForDelegate(hook.Proc));
         Hooks[hwnd] = hook;
+    }
+
+    public static void Ensure(IntPtr hwnd, Func<int, int, bool> interactive)
+    {
+        if (!OperatingSystem.IsWindows() || hwnd == IntPtr.Zero)
+            return;
+        if (!Hooks.TryGetValue(hwnd, out var hook))
+        {
+            Attach(hwnd, interactive);
+            return;
+        }
+
+        var current = GetWindowLongPtr(hwnd, GwlpWndProc);
+        var ours = Marshal.GetFunctionPointerForDelegate(hook.Proc);
+        if (current != ours)
+            hook.Previous = SetWindowLongPtr(hwnd, GwlpWndProc, ours);
+    }
+
+    public static void SetPassThrough(IntPtr hwnd, bool pass)
+    {
+        if (!OperatingSystem.IsWindows() || hwnd == IntPtr.Zero)
+            return;
+        var style = GetWindowLongPtr(hwnd, GwlExStyle).ToInt64();
+        var next = pass ? style | WsExTransparent : style & ~WsExTransparent;
+        next |= WsExNoActivate | WsExToolWindow;
+        if (next != style)
+            SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(next));
     }
 
     public static void Detach(IntPtr hwnd)

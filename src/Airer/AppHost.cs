@@ -191,6 +191,7 @@ public sealed class AppHost : IDisposable
     private void OpenWindows(bool demo, bool debug)
     {
         var window = new LineWindow(this);
+        window.Park();
         window.Show();
         _screens = window.Screens;
         var primary = _screens.Primary ?? _screens.All.FirstOrDefault();
@@ -221,6 +222,7 @@ public sealed class AppHost : IDisposable
             if (window == null)
             {
                 window = new LineWindow(this) { Opacity = 0 };
+                window.Park();
                 window.Show();
                 _windows.Add(window);
             }

@@ -1,13 +1,10 @@
 using Avalonia;
-using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform;
-using Avalonia.Styling;
 
 namespace Airer.Views;
 
@@ -19,9 +16,10 @@ public partial class LineWindow : Window
     private Canvas Cards = null!;
     private readonly AppHost _host = null!;
     private readonly Dictionary<Guid, PegControl> _pegs = [];
-    private TranslateTransform _slide = new();
     private CancellationTokenSource? _slideCts;
     private bool _revealed;
+    private int _homeY;
+    private double _pixelY;
     private IntPtr _native;
 
     public LineWindow()
@@ -32,7 +30,6 @@ public partial class LineWindow : Window
     {
         InitializeComponent();
         _host = host;
-        Root.RenderTransform = _slide;
         Background = Brushes.Transparent;
         TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
         HintText.Text = Text.EmptyHint;
@@ -58,16 +55,23 @@ public partial class LineWindow : Window
     public string Key { get; private set; } = "";
     public bool Revealed => _revealed;
 
+    public void Park()
+    {
+        Position = new PixelPoint(-32000, -32000);
+        WinHitTest.SetPassThrough(_native, true);
+    }
+
     public void Place(Screen screen)
     {
         Screen = screen;
         Key = $"{screen.Bounds.X}:{screen.Bounds.Y}:{screen.Bounds.Width}:{screen.Bounds.Height}";
         var scale = screen.Scaling <= 0 ? 1 : screen.Scaling;
-        Position = new PixelPoint(screen.Bounds.X, screen.WorkingArea.Y);
+        _homeY = screen.WorkingArea.Y;
         Width = screen.Bounds.Width / scale;
         Height = LineLayout.PanelHeight(_host.Settings.Size);
-        if (!_revealed)
-            _slide.Y = HiddenY();
+        if (_slideCts == null)
+            _pixelY = _revealed ? _homeY : HiddenPixelY();
+        ApplyY();
     }
 
     public void SetRevealed(bool revealed, bool instant = false)
@@ -78,9 +82,11 @@ public partial class LineWindow : Window
             return;
         _revealed = revealed;
         if (snapHide)
-            HideImmediately();
+            Jump(HiddenPixelY());
         else
-            _ = Animate(revealed ? 0 : HiddenY(), revealed);
+            Slide(revealed ? _homeY : HiddenPixelY(), revealed);
+        if (OperatingSystem.IsWindows())
+            WinHitTest.SetPassThrough(_native, !revealed);
         if (OperatingSystem.IsMacOS() && !revealed)
             MacWindow.SetIgnoresMouse(_native, true);
     }
@@ -108,7 +114,14 @@ public partial class LineWindow : Window
             peg.SetHover(hit);
             over |= hit;
         }
-        if (OperatingSystem.IsMacOS() && _native != IntPtr.Zero)
+        if (_native == IntPtr.Zero)
+            return;
+        if (OperatingSystem.IsWindows())
+        {
+            WinHitTest.Ensure(_native, Hit);
+            WinHitTest.SetPassThrough(_native, !_revealed || !over);
+        }
+        else if (OperatingSystem.IsMacOS())
             MacWindow.SetIgnoresMouse(_native, !_revealed || !over);
     }
 
@@ -177,50 +190,39 @@ public partial class LineWindow : Window
             MacWindow.Configure(_native);
     }
 
-    private double HiddenY() => -(Height + 12);
+    private double HiddenPixelY()
+    {
+        var scale = Screen?.Scaling > 0 ? Screen.Scaling : 1;
+        var height = double.IsFinite(Height) && Height > 1 ? Height : LineLayout.PanelHeight(_host.Settings.Size);
+        return _homeY - height * scale - 24;
+    }
 
-    private void HideImmediately()
+    private void Jump(double y)
     {
         _slideCts?.Cancel();
         _slideCts = null;
-        // Drop the transform the slide animation is writing to, so a tick already
-        // queued cannot pull the line back on screen. The next reveal reads this Y.
-        _slide = new TranslateTransform { Y = HiddenY() };
-        Root.RenderTransform = _slide;
+        _pixelY = y;
+        ApplyY();
     }
 
-    private async Task Animate(double to, bool show)
+    private void Slide(double target, bool show)
     {
         _slideCts?.Cancel();
         var cts = new CancellationTokenSource();
         _slideCts = cts;
-        var animation = new Animation
+        var from = _pixelY;
+        _ = Motion.Tween(value =>
         {
-            Duration = TimeSpan.FromMilliseconds(show ? 420 : 200),
-            Easing = show ? new CubicEaseOut() : new CubicEaseIn(),
-            FillMode = FillMode.Forward,
-            Children =
-            {
-                new KeyFrame
-                {
-                    Cue = new Cue(0),
-                    Setters = { new Setter(TranslateTransform.YProperty, _slide.Y) },
-                },
-                new KeyFrame
-                {
-                    Cue = new Cue(1),
-                    Setters = { new Setter(TranslateTransform.YProperty, to) },
-                },
-            },
-        };
-        try
-        {
-            await animation.RunAsync(_slide, cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            // A newer slide replaced this one.
-        }
+            _pixelY = value;
+            ApplyY();
+        }, from, target, show ? 420 : 200, easeOut: show, cts.Token);
+    }
+
+    private void ApplyY()
+    {
+        if (Screen == null)
+            return;
+        Position = new PixelPoint(Screen.Bounds.X, (int)Math.Round(_pixelY));
     }
 
     private void OnWheel(object? sender, PointerWheelEventArgs e)

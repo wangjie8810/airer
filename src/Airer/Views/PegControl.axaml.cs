@@ -1,12 +1,9 @@
 using Avalonia;
-using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace Airer.Views;
@@ -99,15 +96,18 @@ public partial class PegControl : UserControl
 
     public void Arrive()
     {
-        _swing.Angle = _item.Tilt + 14;
-        _ = Run(_swing, RotateTransform.AngleProperty, _item.Tilt + 14, _item.Tilt, 700);
+        var start = _item.Tilt + 14;
+        _swing.Angle = start;
+        _ = Motion.Tween(value => _swing.Angle = value, start, _item.Tilt, 700, easeOut: true, CancellationToken.None);
     }
 
     public void Nudge()
     {
         var peak = _item.Tilt + (Random.Shared.NextDouble() * 2 + 1.4) * (Random.Shared.Next(2) == 0 ? -1 : 1);
-        _ = Run(_swing, RotateTransform.AngleProperty, _swing.Angle, peak, 220)
-            .ContinueWith(_ => Dispatcher.UIThread.Post(() => _ = Run(_swing, RotateTransform.AngleProperty, peak, _item.Tilt, 640)));
+        var from = _swing.Angle;
+        _ = Motion.Tween(value => _swing.Angle = value, from, peak, 220, easeOut: true, CancellationToken.None)
+            .ContinueWith(_ => Dispatcher.UIThread.Post(() =>
+                _ = Motion.Tween(value => _swing.Angle = value, peak, _item.Tilt, 640, easeOut: true, CancellationToken.None)));
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -244,24 +244,8 @@ public partial class PegControl : UserControl
     private async Task PlayFall()
     {
         IsHitTestVisible = false;
-        await Run(this, OpacityProperty, Opacity, 0, 180);
-        await Run(_drop, TranslateTransform.YProperty, 0, 180, 420);
+        await Motion.Tween(value => Opacity = value, Opacity, 0, 180, easeOut: true, CancellationToken.None);
+        await Motion.Tween(value => _drop.Y = value, 0, 180, 420, easeOut: true, CancellationToken.None);
         _host.FinishFall(_item);
-    }
-
-    private static Task Run(Animatable target, AvaloniaProperty property, object from, object to, int ms)
-    {
-        var animation = new Animation
-        {
-            Duration = TimeSpan.FromMilliseconds(ms),
-            Easing = new CubicEaseOut(),
-            FillMode = FillMode.Forward,
-            Children =
-            {
-                new KeyFrame { Cue = new Cue(0), Setters = { new Setter(property, from) } },
-                new KeyFrame { Cue = new Cue(1), Setters = { new Setter(property, to) } },
-            },
-        };
-        return animation.RunAsync(target);
     }
 }
